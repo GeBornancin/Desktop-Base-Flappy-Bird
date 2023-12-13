@@ -33,6 +33,7 @@ let imagemCanoInferior; // Imagem do cano inferior a ser carregada
 let velocidadeX = -2; // Velocidade de movimento dos canos para a esquerda
 let velocidadeY = 0; // Velocidade de salto do pássaro
 let gravidade = 0.4; // Gravidade aplicada ao pássaro
+let delayPulo = 0;
 
 let jogoEncerrado = false; // Indica se o jogo está encerrado
 let pontuacao = 0; // Pontuação do jogador
@@ -41,22 +42,53 @@ let pontuacao = 0; // Pontuação do jogador
 window.onload = function () {
     // Obtém a referência do elemento do tabuleiro no HTML usando o ID "tabuleiro"
     tabuleiro = document.getElementById("tabuleiro");
-
+    
     // Define a altura e largura do tabuleiro com base nas variáveis predefinidas
     tabuleiro.height = alturaTabuleiro;
     tabuleiro.width = larguraTabuleiro;
-
+    
     // Obtém o contexto de desenho 2D do tabuleiro
     contexto = tabuleiro.getContext("2d"); // Usado para desenhar no tabuleiro
+    
+    valorEntradaInput = document.getElementById("valor-entrada");
+    
+    document.getElementById("iniciar-jogo").addEventListener("click", function () {
+        iniciarJogo();
+    });
+    
+    document.getElementById("overlay").style.display = "block";
+}
 
+function iniciarJogo() {
+    valorEntrada = parseFloat(valorEntradaInput.value);
+    
+    if (isNaN(valorEntrada) || valorEntrada <= 0) {
+        alert("Por favor, insira um valor válido para iniciar o jogo.");
+        valorEntradaInput.value = "";
+        return;
+    }
+    
+    if (valorEntrada >= 80) {
+        velocidadeX = -4; 
+
+        if (valorEntrada >= 150) {
+            delayPulo = 150; 
+        }
+        if (valorEntrada >= 200) {
+            velocidadeX = -8;
+        }
+    }
+    
+    document.getElementById("overlay").style.display = "none"; // oculta o overlay 
+    pontuacao = valorEntrada;
+    
     // Desenha a imagem do pássaro no tabuleiro quando ela é carregada
     imagemPassaro = new Image(); //Construtor padrão para criar objetos de imagem
     imagemPassaro.src = "assets/flappybird.png"; //Define o PNG da imagem
     imagemPassaro.onload = function () {
         contexto.drawImage(imagemPassaro, passaro.x, passaro.y, passaro.largura, passaro.altura);
     }
-
-
+    
     // Carrega a imagem do cano superior
     imagemCanoSuperior = new Image();
     imagemCanoSuperior.src = "assets/cano-alto.png";
@@ -67,53 +99,59 @@ window.onload = function () {
 
     // Inicia o loop de atualização do jogo usando requestAnimationFrame
     requestAnimationFrame(atualizar);
-
+    
     // Gera novos canos a cada 1.5 segundos usando setInterval
     setInterval(gerarCanos, 1500);
-
+    
     // Adiciona um ouvinte de evento para responder às teclas pressionadas
     document.addEventListener("keydown", moverPassaro);
-
 }
 
 function moverPassaro(evento) {
     // Verifica se a tecla pressionada é a barra de espaço, seta para cima ou tecla X
     if (evento.code == "Space" || evento.code == "ArrowUp" || evento.code == "KeyX") {
         // Ajusta a velocidade vertical para simular um salto
-        velocidadeY = -6;
-
+        setTimeout(function () {
+            velocidadeY = -6;
+        }, delayPulo);
     }
 }
 
 function atualizar() {
     // Solicita ao navegador que chame novamente a função atualizar na próxima renderização
     requestAnimationFrame(atualizar);
-
+    
     if (jogoEncerrado) {
-        contexto.fillText("FIM DE JOGO", 50, 60);
+        contexto.fillText("FIM DE JOGO", 50, 200);
+        contexto.fillText("Você ganhou:", 50, 300);
+        contexto.fillText("R$ " + pontuacao, 50, 350);
         return;
+    }
+    
+    if (passaro.y + passaro.altura >= alturaTabuleiro) {
+        jogoEncerrado = true; // Marca que o jogo está encerrado se o pássaro atingir o chão
     }
 
     // Limpa a área do tabuleiro para desenhar a próxima moldura
     contexto.clearRect(0, 0, tabuleiro.width, tabuleiro.height);
-
+    
     // Pássaro
     // Aumenta a velocidade vertical do pássaro aplicando a força da gravidade
     velocidadeY += gravidade;
-
+    
     // Atualiza a posição vertical do pássaro com base na velocidade
     passaro.y = Math.max(passaro.y + velocidadeY, 0); // Aplica a gravidade à posição Y atual do pássaro, limitando a posição Y ao topo do canvas
-
+    
     // Desenha a imagem do pássaro na nova posição
     contexto.drawImage(imagemPassaro, passaro.x, passaro.y, passaro.largura, passaro.altura);
-
+    
     // Itera sobre os canos presentes no arrayCanos
     for (let i = 0; i < arrayCanos.length; i++) {
         let cano = arrayCanos[i];
-
+        
         // Move o cano para a esquerda com base na velocidadeX
         cano.x += velocidadeX;
-
+        
         // Desenha o cano no contexto do tabuleiro
         contexto.drawImage(cano.imagem, cano.x, cano.y, cano.largura, cano.altura);
 
@@ -122,25 +160,22 @@ function atualizar() {
             pontuacao += 0.5; // Incrementa a pontuação por meio ponto
             cano.passou = true; // Marca que o pássaro já passou por esse cano
         }
-
+        
         // Verifica se há colisão entre o pássaro e o cano
         if (detectarColisao(passaro, cano)) {
             jogoEncerrado = true; // Marca que o jogo está encerrado em caso de colisão
         }
     }
-
+    
     // Limpa os canos que já passaram da tela
     while (arrayCanos.length > 0 && arrayCanos[0].x < -larguraCano) {
         arrayCanos.shift(); // Remove o primeiro elemento do array de canos
     }
-
+    
     // Pontuação
     contexto.fillStyle = "white";
     contexto.font = "45px sans-serif";
-    contexto.fillText(pontuacao, 5, 45);
-
-
-
+    contexto.fillText(`R$ ${pontuacao.toFixed(2)}`, 5, 45);
 }
 
 function gerarCanos() {
@@ -165,7 +200,7 @@ function gerarCanos() {
     };
     // Adiciona o cano superior ao array de canos
     arrayCanos.push(canoSuperior);
-
+    
     // Cria um objeto representando o cano inferior
     let canoInferior = {
         imagem: imagemCanoInferior, // Imagem do cano inferior
@@ -185,11 +220,11 @@ function detectarColisao(passaro, cano) {
     //verifica se a sobreposição de objetos
     const colisaoX = passaro.x < cano.x + cano.largura && passaro.x + passaro.largura > cano.x;
     const colisaoY = passaro.y < cano.y + cano.altura && passaro.y + passaro.altura > cano.y;
-
+    
     if (colisaoX && colisaoY) {
         console.log("Colisão detectada")
         return true;
     }
-
+    
     return false;
 }
